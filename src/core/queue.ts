@@ -28,7 +28,7 @@ export interface Subscriber {
   onDeliver(cb: (env: Envelope) => void): void;
 }
 
-type Lease = { id: string; subscriberId: string; expiresAt: number };
+type Lease = { id: string; subscriberId: string; expiresAt: number; env: Envelope };
 
 class Ring<T> {
   private buf: T[];
@@ -63,6 +63,7 @@ interface StreamState {
   ring: Ring<Envelope>;
   subscriber?: { sub: InternalSubscriber };
   inflight: Map<string, Lease>;
+  recent: { set: Set<string>; q: string[]; cap: number };
   rateIn: number;
   rateOut: number;
   latSamples: number[];
@@ -91,7 +92,7 @@ export class InMemoryQueue implements QueueCore {
   private getStream(stream: StreamId): StreamState {
     let s = this.streams.get(stream);
     if (!s) {
-      s = { ring: new Ring<Envelope>(this.maxDepth), inflight: new Map(), rateIn: 0, rateOut: 0, latSamples: [] };
+      s = { ring: new Ring<Envelope>(this.maxDepth), inflight: new Map(), recent: { set: new Set(), q: [], cap: 10000 }, rateIn: 0, rateOut: 0, latSamples: [] };
       this.streams.set(stream, s);
     }
     return s;
@@ -100,6 +101,10 @@ export class InMemoryQueue implements QueueCore {
   enqueue(stream: StreamId, env: Envelope): { id: string } {
     if (!env?.id || !env?.ts || !stream) throw new Error('invalid envelope');
     const s = this.getStream(stream);
+    // de-dup window: drop if recently acked
+    if (s.recent.set.has(env.id)) {
+      return { id: env.id };
+    }
     s.ring.push(env);
     s.rateIn++;
     s.lastTs = env.ts;
@@ -126,7 +131,15 @@ export class InMemoryQueue implements QueueCore {
   ack(subId: string, id: string): void {
     const s = this.findStreamBySub(subId);
     if (!s) return;
-    s.inflight.delete(id);
+    if (s.inflight.delete(id)) {
+      // record in recent window
+      s.recent.set.add(id);
+      s.recent.q.push(id);
+      if (s.recent.q.length > s.recent.cap) {
+        const oldest = s.recent.q.shift()!;
+        s.recent.set.delete(oldest);
+      }
+    }
     this.maybeDeliver(s.subscriber!.sub.stream, s);
   }
 
@@ -136,8 +149,8 @@ export class InMemoryQueue implements QueueCore {
     const lease = s.inflight.get(id);
     if (lease) {
       s.inflight.delete(id);
-      // Re-enqueue by placing a placeholder to tail: we need the original env
-      // Simplify: do nothing if original lost; v1 expects ack not nack.
+      // Re-enqueue original envelope at tail
+      s.ring.push(lease.env);
     }
     this.maybeDeliver(s.subscriber!.sub.stream, s);
   }
@@ -160,7 +173,7 @@ export class InMemoryQueue implements QueueCore {
     const sub = s.subscriber?.sub; if (!sub) return;
     while (sub.credit > 0 && s.ring.size() > 0) {
       const env = s.ring.pop(); if (!env) break;
-      const lease: Lease = { id: env.id, subscriberId: sub.id, expiresAt: this.now() + this.leaseMs };
+      const lease: Lease = { id: env.id, subscriberId: sub.id, expiresAt: this.now() + this.leaseMs, env };
       s.inflight.set(env.id, lease);
       sub.credit--;
       s.rateOut++;
@@ -176,9 +189,9 @@ export class InMemoryQueue implements QueueCore {
     for (const [stream, s] of this.streams.entries()) {
       for (const [id, lease] of Array.from(s.inflight.entries())) {
         if (lease.expiresAt <= now) {
-          // redeliver by forgetting inflight and moving on (ring already advanced)
           s.inflight.delete(id);
-          // no automatic requeue; future publishes will deliver; v1 keeps it simple
+          // re-enqueue for redelivery
+          s.ring.push(lease.env);
         }
       }
     }
