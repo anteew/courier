@@ -1,0 +1,7 @@
+streams:
+  defaultLeaseMs: 30000
+  maxDepth: 100000
+triggers:
+  - id: trig.jen.log.notify.architect
+    when: { type: sprint.log, from: agents/Jen/outbox }
+    do: [ { action: notify, to: agents/architect/inbox } ]

@@ -1,0 +1,19 @@
+{
+  "name": "courier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "node --loader ts-node/esm src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.8.1",
+    "fastify": "^5.6.1",
+    "pino": "^10.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3",
+    "zod": "^4.1.12"
+  }
+}
