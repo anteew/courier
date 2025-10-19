@@ -8,7 +8,11 @@
     "dev": "node --loader ts-node/esm src/index.ts",
     "cli:enqueue": "node --loader ts-node/esm scripts/cli/enqueue.ts",
     "cli:subscribe": "node --loader ts-node/esm scripts/cli/subscribe.ts",
-    "demo:notify": "node --loader ts-node/esm scripts/cli/demo-notify.ts"
+    "cli:stats": "node --loader ts-node/esm scripts/cli/stats.ts",
+    "cli:snapshot": "node --loader ts-node/esm scripts/cli/snapshot.ts",
+    "demo:notify": "node --loader ts-node/esm scripts/cli/demo-notify.ts",
+    "demo:e2e": "node --loader ts-node/esm scripts/cli/demo-e2e.ts"
+    ,"test:watch": "bash scripts/test/watch-run.sh 20"
   },
   "devDependencies": {
     "@types/node": "^24.8.1",
