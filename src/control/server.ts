@@ -7,7 +7,12 @@ import { Recorder } from './record.js';
 export class PipeServer {
   private buf = '';
   private sub: { id: string; stream: string } | null = null;
+  private tokenPresent = false;
   constructor(private core: QueueCore, private view: LatestPerAgentView, private rec?: Recorder) {}
+
+  getAllMetrics() {
+    return this.core.getAllStreams();
+  }
 
   attach(stream: Duplex) {
     stream.setEncoding('utf8');
@@ -27,6 +32,7 @@ export class PipeServer {
     try {
       switch (f.type) {
         case 'hello':
+          this.tokenPresent = !!f.token;
           this.send(stream, { type: 'ok', reqId: 'hello', result: { version: 'v1', features: ['credit','views','triggers'] } });
           break;
         case 'enqueue': {
@@ -49,7 +55,7 @@ export class PipeServer {
           if (this.sub) this.core.ack(this.sub.id, f.id);
           break;
         case 'nack':
-          if (this.sub) this.core.nack(this.sub.id, f.id);
+          if (this.sub) this.core.nack(this.sub.id, f.id, f.delayMs);
           break;
         case 'stats': {
           const stats = this.core.stats(f.stream);
@@ -63,6 +69,11 @@ export class PipeServer {
           } else {
             this.send(stream, { type: 'error', reqId: f.reqId, code: 'UnknownView', detail: f.view });
           }
+          break;
+        }
+        case 'metrics': {
+          const streams = this.getAllMetrics();
+          this.send(stream, { type: 'ok', reqId: f.reqId, result: { streams } });
           break;
         }
         default:

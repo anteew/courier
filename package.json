@@ -11,8 +11,9 @@
     "cli:stats": "node --loader ts-node/esm scripts/cli/stats.ts",
     "cli:snapshot": "node --loader ts-node/esm scripts/cli/snapshot.ts",
     "demo:notify": "node --loader ts-node/esm scripts/cli/demo-notify.ts",
-    "demo:e2e": "node --loader ts-node/esm scripts/cli/demo-e2e.ts"
-    ,"test:watch": "bash scripts/test/watch-run.sh 20"
+    "demo:e2e": "node --loader ts-node/esm scripts/cli/demo-e2e.ts",
+    "test:watch": "bash scripts/test/watch-run.sh 20",
+    "demo:nack": "node --loader ts-node/esm scripts/cli/demo-nack.ts"
   },
   "devDependencies": {
     "@types/node": "^24.8.1",

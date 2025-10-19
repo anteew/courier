@@ -17,8 +17,9 @@ export interface QueueCore {
   subscribe(stream: StreamId): Subscriber;
   grantCredit(subId: string, n: number): void;
   ack(subId: string, id: string): void;
-  nack(subId: string, id: string): void;
+  nack(subId: string, id: string, delayMs?: number): void;
   stats(stream: StreamId): StreamStats;
+  getAllStreams(): Array<{ id: string; stats: StreamStats }>;
 }
 
 export interface Subscriber {
@@ -143,16 +144,24 @@ export class InMemoryQueue implements QueueCore {
     this.maybeDeliver(s.subscriber!.sub.stream, s);
   }
 
-  nack(subId: string, id: string): void {
+  nack(subId: string, id: string, delayMs?: number): void {
     const s = this.findStreamBySub(subId);
     if (!s) return;
     const lease = s.inflight.get(id);
     if (lease) {
       s.inflight.delete(id);
-      // Re-enqueue original envelope at tail
-      s.ring.push(lease.env);
+      if (delayMs && delayMs > 0) {
+        setTimeout(() => {
+          s.ring.push(lease.env);
+          this.maybeDeliver(s.subscriber!.sub.stream, s);
+        }, delayMs);
+      } else {
+        s.ring.push(lease.env);
+        this.maybeDeliver(s.subscriber!.sub.stream, s);
+      }
+    } else if (!delayMs) {
+      this.maybeDeliver(s.subscriber!.sub.stream, s);
     }
-    this.maybeDeliver(s.subscriber!.sub.stream, s);
   }
 
   stats(stream: StreamId): StreamStats {
@@ -160,6 +169,19 @@ export class InMemoryQueue implements QueueCore {
     const arr = s.latSamples.slice(-64).sort((a,b)=>a-b);
     const p = (q:number)=> arr.length? arr[Math.floor(q*(arr.length-1))]:0;
     return { depth: s.ring.size(), inflight: s.inflight.size, rateIn: s.rateIn, rateOut: s.rateOut, latP50: p(0.5), latP95: p(0.95), lastTs: s.lastTs };
+  }
+
+  getAllStreams(): Array<{ id: string; stats: StreamStats }> {
+    const result: Array<{ id: string; stats: StreamStats }> = [];
+    for (const [id, s] of this.streams.entries()) {
+      const arr = s.latSamples.slice(-64).sort((a,b)=>a-b);
+      const p = (q:number)=> arr.length? arr[Math.floor(q*(arr.length-1))]:0;
+      result.push({
+        id,
+        stats: { depth: s.ring.size(), inflight: s.inflight.size, rateIn: s.rateIn, rateOut: s.rateOut, latP50: p(0.5), latP95: p(0.95), lastTs: s.lastTs }
+      });
+    }
+    return result;
   }
 
   private findStreamBySub(subId: string): StreamState | undefined {

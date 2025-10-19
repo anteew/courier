@@ -53,9 +53,9 @@ export class PipeClient {
     }
   }
   private reqId(): string { return 'r' + (++this.seq); }
-  async hello(features: string[] = []): Promise<{ version: string; features: string[] }> {
+  async hello(features: string[] = [], token?: string): Promise<{ version: string; features: string[] }> {
     const reqId = 'hello';
-    return new Promise((resolve) => { this.pending.set(reqId, (res)=>resolve(res)); this.send({ type: 'hello', version: 'v1', features }); });
+    return new Promise((resolve) => { this.pending.set(reqId, (res)=>resolve(res)); this.send({ type: 'hello', version: 'v1', features, token }); });
   }
   async enqueue(to: string, env: Envelope): Promise<{ id: string }> {
     const reqId = this.reqId();
@@ -84,6 +84,13 @@ export class PipeClient {
     return new Promise((resolve, reject) => {
       this.pending.set(reqId, (res, err)=> err ? reject(err) : resolve(res));
       this.send({ type: 'snapshot', reqId, view });
+    });
+  }
+  async metrics(): Promise<{ streams: Array<{ id: string; stats: StreamStats }> }> {
+    const reqId = this.reqId();
+    return new Promise((resolve, reject) => {
+      this.pending.set(reqId, (res, err)=> err ? reject(err) : resolve(res));
+      this.send({ type: 'metrics', reqId });
     });
   }
 }

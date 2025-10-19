@@ -11,6 +11,7 @@ export type NackFrame = { type: 'nack'; id: string; delayMs?: number };
 export type DeliverFrame = { type: 'deliver'; env: Envelope };
 export type StatsFrame = { type: 'stats'; reqId: string; stream: string };
 export type SnapshotFrame = { type: 'snapshot'; reqId: string; view: string };
+export type MetricsFrame = { type: 'metrics'; reqId: string };
 
 export type Req = { reqId?: string };
 export type ControlFrame =
@@ -24,7 +25,8 @@ export type ControlFrame =
   | NackFrame
   | DeliverFrame
   | StatsFrame
-  | SnapshotFrame;
+  | SnapshotFrame
+  | MetricsFrame;
 
 export function encodeFrame(f: ControlFrame): string {
   return JSON.stringify(f) + '\n';

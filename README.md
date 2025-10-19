@@ -72,6 +72,11 @@ npm run cli:snapshot -- --view latestPerAgent
 curl http://127.0.0.1:8787/v1/metrics
 ```
 
+**Live updates (SSE):**
+```bash
+curl -N 'http://127.0.0.1:8787/v1/live?view=latestPerAgent'
+```
+
 ### WebSocket Gateway (port 8788)
 
 Subscribe to a stream (requires websocat):
@@ -96,6 +101,8 @@ COURIER_DISABLE_WS=false
 COURIER_RATE_LIMIT=false
 COURIER_RATE_LIMIT_PER_IP=100
 COURIER_RATE_LIMIT_WINDOW_MS=60000
+COURIER_TOKENS=dev-local                        # Optional allowlist for edge auth
+COURIER_PROTECT_METRICS=false                   # Include /v1/metrics in token protection when true
 
 # Control protocol recording
 COURIER_RECORD_CONTROL=/path/to/control.jsonl
@@ -123,6 +130,7 @@ npm run test:watch                              # Start + verify with timeout, t
 - [TDS-COURIER-v1.md](TDS-COURIER-v1.md) — v1 technical design spec
 - [TDS-STAGE1.md](TDS-STAGE1.md) — Stage 1 implementation notes
 - [docs/mkctl-courier.md](docs/mkctl-courier.md) — mkctl helper guide
+- Ava (Architect): Ava is your technical lead and will keep the scaffolding simple, safe, and reusable. Use agents to run code; Ava handles design and integrations.
 
 ## Architecture
 
@@ -145,3 +153,28 @@ npm run build
 ```
 
 The project uses ts-node for local development (no build step required).
+
+## Docker
+
+Build and run with Docker:
+
+```bash
+# Build image
+docker build -t courier:latest .
+
+# Run with default ports
+docker run -p 8787:8787 -p 8788:8788 courier:latest
+
+# Run with environment variables
+docker run -p 8787:8787 -p 8788:8788 \
+  -e COURIER_RATE_LIMIT=true \
+  -e COURIER_TOKENS=dev-local \
+  courier:latest
+
+# Run with mounted config
+docker run -p 8787:8787 -p 8788:8788 \
+  -v $(pwd)/config:/app/config \
+  courier:latest
+```
+
+The Docker image exposes ports 8787 (HTTP) and 8788 (WebSocket).

@@ -10,6 +10,9 @@ import { Recorder } from './control/record.js';
 import { PipeClient, makeDuplexPair } from './control/client.js';
 import { PipeServer } from './control/server.js';
 
+export const COURIER_VERSION = 'v1.0.0-stage1';
+export const COURIER_FEATURES = ['enqueue', 'subscribe', 'stats', 'snapshot', 'triggers'];
+
 const core = new InMemoryQueue();
 const view = new LatestPerAgentView();
 
@@ -57,7 +60,7 @@ const disableHttp = String(process.env.COURIER_DISABLE_HTTP || 'false').toLowerC
 const disableWs = String(process.env.COURIER_DISABLE_WS || 'false').toLowerCase() === 'true';
 
 if (!disableHttp) {
-  startHttpGateway(client, httpPort, bind);
+  startHttpGateway(client, view, httpPort, bind);
   console.log(`Courier HTTP gateway on ${bind}:${httpPort}`);
 }
 if (!disableWs) {
