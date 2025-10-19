@@ -1,0 +1,31 @@
+{
+  "name": "courier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "node --loader ts-node/esm src/index.ts",
+    "cli:enqueue": "node --loader ts-node/esm scripts/cli/enqueue.ts",
+    "cli:subscribe": "node --loader ts-node/esm scripts/cli/subscribe.ts",
+    "cli:stats": "node --loader ts-node/esm scripts/cli/stats.ts",
+    "cli:snapshot": "node --loader ts-node/esm scripts/cli/snapshot.ts",
+    "demo:notify": "node --loader ts-node/esm scripts/cli/demo-notify.ts",
+    "demo:e2e": "node --loader ts-node/esm scripts/cli/demo-e2e.ts",
+    "test:watch": "bash scripts/test/watch-run.sh 20",
+    "demo:nack": "node --loader ts-node/esm scripts/cli/demo-nack.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.8.1",
+    "@types/ws": "^8.18.1",
+    "fastify": "^5.6.1",
+    "pino": "^10.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3",
+    "zod": "^4.1.12"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}
