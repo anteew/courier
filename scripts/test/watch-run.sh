@@ -10,7 +10,7 @@ LOG=$BASE.log
 PIDF=$BASE.pid
 
 # Clean any existing listeners
-for P in "$HTTP_PORT" "$WS_PORT"; do lsof -tiTCP:$P -sTCP:LISTEN | xargs -r kill; done
+for P in "$HTTP_PORT" "$WS_PORT"; do lsof -tiTCP:$P -sTCP:LISTEN | xargs -r kill || true; done
 
 # Start server
 (COURIER_BIND="$BIND" node --loader ts-node/esm src/index.ts >"$LOG" 2>&1 & echo $! > "$PIDF")
