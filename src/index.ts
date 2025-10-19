@@ -6,6 +6,9 @@ import { startWsGateway } from './gateway/ws.js';
 import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
+import { Recorder } from './control/record.js';
+import { PipeClient, makeDuplexPair } from './control/client.js';
+import { PipeServer } from './control/server.js';
 
 const core = new InMemoryQueue();
 const view = new LatestPerAgentView();
@@ -32,9 +35,32 @@ const engine = new TriggerEngine(triggerRules, (to, env) => core.enqueue(to, env
 
 // Wrap enqueue to update views and fire triggers
 const realEnq = core.enqueue.bind(core);
+// Wrap enqueue to update views and fire triggers
 (core as any).enqueue = (to: string, env: any) => { const r = realEnq(to, env); try { view.update(env); engine.onInsert(env); } catch {}; return r; };
 
-startHttpGateway(core, view, 8787);
-startWsGateway(core, 8788);
-console.log('Courier HTTP gateway on :8787');
-console.log('Courier WS gateway on :8788');
+// Build in-process pipe between client and server
+const [clientEnd, serverEnd] = makeDuplexPair();
+const recorderPath = process.env.COURIER_RECORD_CONTROL;
+const rec = new Recorder(recorderPath);
+// Attach server
+const server = new PipeServer(core, view, rec);
+server.attach(serverEnd);
+// Create client
+const client = new PipeClient(clientEnd, rec);
+client.hello().catch(()=>{});
+
+// Config
+const httpPort = Number(process.env.COURIER_HTTP_PORT || 8787);
+const wsPort = Number(process.env.COURIER_WS_PORT || 8788);
+const bind = process.env.COURIER_BIND || '127.0.0.1';
+const disableHttp = String(process.env.COURIER_DISABLE_HTTP || 'false').toLowerCase() === 'true';
+const disableWs = String(process.env.COURIER_DISABLE_WS || 'false').toLowerCase() === 'true';
+
+if (!disableHttp) {
+  startHttpGateway(client, httpPort, bind);
+  console.log(`Courier HTTP gateway on ${bind}:${httpPort}`);
+}
+if (!disableWs) {
+  startWsGateway(client, wsPort, bind);
+  console.log(`Courier WS gateway on ${bind}:${wsPort}`);
+}
